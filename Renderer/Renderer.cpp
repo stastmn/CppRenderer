@@ -1,180 +1,113 @@
 ﻿// Renderer.cpp : Определяет точку входа для приложения.
-//
+//only x64 build
 
 #include "framework.h"
 #include "Renderer.h"
+#include <iostream>
+#include <SDL.h>
 
-#define MAX_LOADSTRING 100
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 480
 
-// Глобальные переменные:
-HINSTANCE hInst;                                // текущий экземпляр
-WCHAR szTitle[MAX_LOADSTRING];                  // Текст строки заголовка
-WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
+SDL_Window* g_window = nullptr;
+SDL_Renderer* g_renderer = nullptr;
+SDL_Texture* g_targetTexture = nullptr;
 
-// Отправить объявления функций, включенных в этот модуль кода:
-ATOM                MyRegisterClass(HINSTANCE hInstance);
-BOOL                InitInstance(HINSTANCE, int);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+void g_InitSdlResourses();
+void g_FreeSdlResourses();
 
-int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-                     _In_opt_ HINSTANCE hPrevInstance,
-                     _In_ LPWSTR    lpCmdLine,
-                     _In_ int       nCmdShow)
+int main(int argc, char * argv[])
 {
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // TODO: Разместите код здесь.
+	g_InitSdlResourses();
 
-    // Инициализация глобальных строк
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_RENDERER, szWindowClass, MAX_LOADSTRING);
-    MyRegisterClass(hInstance);
+	//render texture
+/*	SDL_RenderClear(g_renderer);
+	SDL_RenderCopy(g_renderer, g_targetTexture, NULL, NULL);
+	SDL_RenderPresent(g_renderer);
+	SDL_Delay(4000);*/
 
-    // Выполнить инициализацию приложения:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
-    }
+	//drawing
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_RENDERER));
+	Uint32* pixels = new Uint32[WINDOW_WIDTH*WINDOW_HEIGHT];
+	Uint32* middle = &pixels[WINDOW_WIDTH * 240];
+	for(int i = 0;i<WINDOW_WIDTH;i++)
+	{
+		Uint8* c =(Uint8*) &middle[i];
+		c[2] = 255;
+	}
 
-    MSG msg;
+	
+	SDL_UpdateTexture(g_targetTexture, NULL, pixels, sizeof(Uint32) * WINDOW_WIDTH);
+	
+	
+	SDL_RenderClear(g_renderer);
+	SDL_RenderCopy(g_renderer, g_targetTexture, NULL, NULL);
+	SDL_RenderPresent(g_renderer);
+	SDL_Delay(4000);
 
-    // Цикл основного сообщения:
-    while (GetMessage(&msg, nullptr, 0, 0))
-    {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
-
-    return (int) msg.wParam;
+	delete[] pixels;
+	g_FreeSdlResourses();
+	std::cin.get();
+	return 0;
 }
 
-
-
-//
-//  ФУНКЦИЯ: MyRegisterClass()
-//
-//  ЦЕЛЬ: Регистрирует класс окна.
-//
-ATOM MyRegisterClass(HINSTANCE hInstance)
+void g_InitSdlResourses()
 {
-    WNDCLASSEXW wcex;
 
-    wcex.cbSize = sizeof(WNDCLASSEX);
+	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	{
+		std::cout << "SDL initialization failed. SDL Error: " << SDL_GetError() << std::endl;
+		throw std::runtime_error(SDL_GetError());
+	}
+	else
+	{
+		std::cout << "SDL initialization succeeded!" << std::endl;
+	}
 
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProc;
-    wcex.cbClsExtra     = 0;
-    wcex.cbWndExtra     = 0;
-    wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_RENDERER));
-    wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_RENDERER);
-    wcex.lpszClassName  = szWindowClass;
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
-    return RegisterClassExW(&wcex);
+	g_window = SDL_CreateWindow("Renderer", 100, 100,
+		WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+	if (g_window == nullptr)
+	{
+		std::cout << "SDL window creating failed. SDL Error: " << SDL_GetError() << std::endl;
+		throw std::runtime_error(SDL_GetError());
+	}
+
+
+	g_renderer = SDL_CreateRenderer(g_window, -1, SDL_RENDERER_ACCELERATED);
+	if (g_renderer == nullptr)
+	{
+		std::cout << "SDL renderer creating failed. SDL Error: " << SDL_GetError() << std::endl;
+		throw std::runtime_error(SDL_GetError());
+	}
+
+	g_targetTexture = SDL_CreateTexture(g_renderer, SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_STREAMING, WINDOW_WIDTH, WINDOW_HEIGHT);
+	if (g_targetTexture == nullptr)
+	{
+		std::cout << "SDL texture creating failed. SDL Error: " << SDL_GetError() << std::endl;
+		throw std::runtime_error(SDL_GetError());
+	}
 }
 
-//
-//   ФУНКЦИЯ: InitInstance(HINSTANCE, int)
-//
-//   ЦЕЛЬ: Сохраняет маркер экземпляра и создает главное окно
-//
-//   КОММЕНТАРИИ:
-//
-//        В этой функции маркер экземпляра сохраняется в глобальной переменной, а также
-//        создается и выводится главное окно программы.
-//
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+void g_FreeSdlResourses()
 {
-   hInst = hInstance; // Сохранить маркер экземпляра в глобальной переменной
-
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
-
-   if (!hWnd)
-   {
-      return FALSE;
-   }
-
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
-
-   return TRUE;
-}
-
-//
-//  ФУНКЦИЯ: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  ЦЕЛЬ: Обрабатывает сообщения в главном окне.
-//
-//  WM_COMMAND  - обработать меню приложения
-//  WM_PAINT    - Отрисовка главного окна
-//  WM_DESTROY  - отправить сообщение о выходе и вернуться
-//
-//
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    switch (message)
-    {
-    case WM_COMMAND:
-        {
-            int wmId = LOWORD(wParam);
-            // Разобрать выбор в меню:
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
-        }
-        break;
-    case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Добавьте сюда любой код прорисовки, использующий HDC...
-            EndPaint(hWnd, &ps);
-        }
-        break;
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
-    }
-    return 0;
-}
-
-// Обработчик сообщений для окна "О программе".
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
-
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
+	//cleanup
+	if (g_targetTexture != nullptr) {
+		SDL_DestroyTexture(g_targetTexture);
+		g_targetTexture = nullptr;
+	}
+	if (g_renderer != nullptr)
+	{
+		SDL_DestroyRenderer(g_renderer);
+		g_renderer = nullptr;
+	}
+	if (g_window != nullptr)
+	{
+		SDL_DestroyWindow(g_window);
+		g_window = nullptr;
+	}
+	SDL_Quit();
+	
 }
